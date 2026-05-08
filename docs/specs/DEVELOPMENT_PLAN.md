@@ -1,0 +1,296 @@
+# DEVELOPMENT PLAN: Fernanda Marketing
+
+## 1. ARCHITECTURE OVERVIEW
+
+**Components:**
+- **Backend:** Python 3.11, FastAPI (split into two services: auth-service on 8001, opportunity-service on 8002), SQLAlchemy, PostgreSQL 15, Pydantic, Uvicorn, PyJWT, passlib.
+- **Frontend:** React 18 (Vite + TypeScript), Zustand, Axios, Chart.js, Radix UI, Emotion.
+- **Shared:** Python shared models, DB utilities, JWT/password utils.
+- **Infrastructure:** Docker, docker-compose, root scripts, .env, documentation.
+
+**Models & APIs:**
+- **Data Contracts:** User, Campaign, Task, Metric, Report (with Create/Update variants), Token.
+- **API Endpoints:** Auth (login, register, me), Users (CRUD), Campaigns (CRUD), Tasks (CRUD), Metrics (list/create), Reports (list/create).
+- **Frontend State:** Zustand stores for each domain, API clients for each endpoint, TypeScript interfaces matching backend models.
+
+**Folder Structure:**
+```
+project-root/
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+├── .dockerignore
+├── README.md
+├── run.sh
+├── docs/
+│   └── architecture.md
+├── backend/
+│   ├── shared/
+│   │   ├── models.py
+│   │   ├── db.py
+│   │   ├── auth.py
+│   │   └── __init__.py
+│   ├── auth-service/
+│   │   ├── main.py
+│   │   ├── routes.py
+│   │   ├── service.py
+│   │   ├── Dockerfile
+│   │   └── __init__.py
+│   ├── opportunity-service/
+│   │   ├── main.py
+│   │   ├── routes.py
+│   │   ├── service.py
+│   │   ├── Dockerfile
+│   │   └── __init__.py
+│   └── requirements.txt
+├── frontend/
+│   ├── Dockerfile
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   ├── package.json
+│   ├── public/
+│   │   └── index.html
+│   └── src/
+│       ├── main.tsx
+│       ├── App.tsx
+│       ├── routes.tsx
+│       ├── types/
+│       │   └── models.ts
+│       ├── api/
+│       │   ├── auth.ts
+│       │   ├── users.ts
+│       │   ├── campaigns.ts
+│       │   ├── tasks.ts
+│       │   ├── metrics.ts
+│       │   └── reports.ts
+│       ├── state/
+│       │   ├── useAuth.ts
+│       │   ├── useUsers.ts
+│       │   ├── useCampaigns.ts
+│       │   ├── useTasks.ts
+│       │   ├── useMetrics.ts
+│       │   └── useReports.ts
+│       ├── components/
+│       │   └── [UI components per Figma contract]
+│       └── pages/
+│           └── [Page components per Figma contract]
+```
+
+## 2. ACCEPTANCE CRITERIA
+
+1. The system runs locally via `./run.sh`, with all services healthy and accessible at their documented ports.
+2. All backend API endpoints respond as per SPEC.md, with correct validation, error handling, and RBAC enforced.
+3. The frontend implements the Figma-approved UI/UX 1:1, including tokens, layout, components, and responsive behavior, and interacts with the backend as specified.
+
+---
+
+## TEAM SCOPE (MANDATORY — PARSED BY THE PIPELINE)
+Every executable item includes a **Role:** line at the end.
+
+---
+
+## 3. EXECUTABLE ITEMS
+
+---
+
+### ITEM 1: Foundation — shared types, interfaces, DB schemas, config
+
+**Goal:**  
+Create all shared code and contracts required by backend and frontend.  
+Includes:  
+- Python shared Pydantic models (all data contracts), SQLAlchemy models, DB utilities, JWT/password utils.
+- TypeScript interfaces for all models.
+- Backend requirements.txt with all dependencies.
+- Frontend types and config.
+- No business logic or endpoints.
+
+**Files to create:**
+- backend/shared/models.py (create) — All Pydantic models and SQLAlchemy models for User, Campaign, Task, Metric, Report, Token, and their Create/Update variants.
+- backend/shared/db.py (create) — SQLAlchemy DB connection utilities, session management, engine creation.
+- backend/shared/auth.py (create) — JWT encode/decode, password hashing/verification (passlib, PyJWT).
+- backend/shared/__init__.py (create)
+- backend/requirements.txt (create) — All backend dependencies: fastapi, sqlalchemy, pydantic, psycopg2-binary, uvicorn, passlib, pyjwt, alembic, python-dotenv, etc.
+- frontend/src/types/models.ts (create) — All TypeScript interfaces matching backend models.
+- frontend/src/types/designTokens.ts (create) — TypeScript export of Figma design tokens (colors, typography, spacing, radii, shadows, etc.) for use in Emotion and components.
+- frontend/src/types/index.ts (create) — Barrel file for types.
+- frontend/src/api/apiConfig.ts (create) — Axios base config, API URL from env.
+- frontend/src/state/storeConfig.ts (create) — Zustand store config, base state types.
+**Dependencies:** None  
+**Validation:**  
+- `mypy backend/shared/models.py` passes (type checks).
+- `pip install -r backend/requirements.txt` succeeds.
+- `tsc --noEmit frontend/src/types/models.ts` passes (type checks).
+**Role:** role-tl (technical_lead)
+
+---
+
+### ITEM 2: Backend — Auth & User Service (auth-service, port 8001)
+
+**Goal:**  
+Implement the authentication and user management service as per SPEC.md:
+- POST /auth/login
+- POST /auth/register
+- GET /auth/me
+- GET /users/
+- GET /users/{user_id}
+- PUT /users/{user_id}
+- DELETE /users/{user_id}
+- GET /health (healthcheck endpoint)
+- Structured logging, env validation, error handling, RBAC enforcement.
+
+**Files to create:**
+- backend/auth-service/main.py (create) — FastAPI app entrypoint, includes /health.
+- backend/auth-service/routes.py (create) — All route handlers for auth and user endpoints.
+- backend/auth-service/service.py (create) — Business logic for user CRUD, authentication, JWT, password hashing.
+- backend/auth-service/Dockerfile (create) — Multi-stage build, non-root, EXPOSE 8001, CMD: `uvicorn main:app --host 0.0.0.0 --port 8001`.
+- backend/auth-service/__init__.py (create)
+**Dependencies:** Item 1  
+**Validation:**  
+- `docker build -t auth-service backend/auth-service` succeeds.
+- `docker run -p 8001:8001 auth-service` exposes /health and all endpoints.
+- All endpoints respond as per SPEC.md, with correct validation and error handling.
+**Role:** role-be (backend_developer)
+
+---
+
+### ITEM 3: Backend — Opportunity Service (campaigns, tasks, metrics, reports, port 8002)
+
+**Goal:**  
+Implement the opportunity-service as per SPEC.md:
+- Campaigns: GET/POST/PUT/DELETE /campaigns, /campaigns/{id}
+- Tasks: GET/POST/PUT/DELETE /tasks, /tasks/{id}
+- Metrics: GET /metrics/?campaign_id, POST /metrics/
+- Reports: GET /reports/?campaign_id, POST /reports/
+- GET /health (healthcheck endpoint)
+- Structured logging, env validation, error handling, RBAC enforcement.
+
+**Files to create:**
+- backend/opportunity-service/main.py (create) — FastAPI app entrypoint, includes /health.
+- backend/opportunity-service/routes.py (create) — All route handlers for campaigns, tasks, metrics, reports.
+- backend/opportunity-service/service.py (create) — Business logic for all opportunity domain operations.
+- backend/opportunity-service/Dockerfile (create) — Multi-stage build, non-root, EXPOSE 8002, CMD: `uvicorn main:app --host 0.0.0.0 --port 8002`.
+- backend/opportunity-service/__init__.py (create)
+**Dependencies:** Item 1  
+**Validation:**  
+- `docker build -t opportunity-service backend/opportunity-service` succeeds.
+- `docker run -p 8002:8002 opportunity-service` exposes /health and all endpoints.
+- All endpoints respond as per SPEC.md, with correct validation and error handling.
+**Role:** role-be (backend_developer)
+
+---
+
+### ITEM 4: Frontend — Core App, Routing, State, API Clients, Design Tokens
+
+**Goal:**  
+Implement the frontend core:  
+- App shell, routing, Zustand state stores, API clients for all endpoints, design tokens, and config.
+- Integrate all Figma design tokens (colors, typography, spacing, radii, shadows, etc.) via Emotion.
+- Set up Axios API clients for auth, users, campaigns, tasks, metrics, reports.
+- Implement Zustand stores for each domain.
+- Implement main.tsx, App.tsx, routes.tsx, and base layout.
+
+**Files to create:**
+- frontend/src/main.tsx (create) — React entrypoint.
+- frontend/src/App.tsx (create) — App root, layout, theme provider.
+- frontend/src/routes.tsx (create) — Route definitions for all pages.
+- frontend/src/api/auth.ts (create) — Auth API client.
+- frontend/src/api/users.ts (create) — Users API client.
+- frontend/src/api/campaigns.ts (create) — Campaigns API client.
+- frontend/src/api/tasks.ts (create) — Tasks API client.
+- frontend/src/api/metrics.ts (create) — Metrics API client.
+- frontend/src/api/reports.ts (create) — Reports API client.
+- frontend/src/state/useAuth.ts (create) — Auth state (Zustand).
+- frontend/src/state/useUsers.ts (create) — Users state.
+- frontend/src/state/useCampaigns.ts (create) — Campaigns state.
+- frontend/src/state/useTasks.ts (create) — Tasks state.
+- frontend/src/state/useMetrics.ts (create) — Metrics state.
+- frontend/src/state/useReports.ts (create) — Reports state.
+- frontend/vite.config.ts (create) — Vite config, env vars for API URL.
+- frontend/tsconfig.json (create) — TypeScript config, strict mode.
+- frontend/package.json (create) — All dependencies.
+**Dependencies:** Item 1  
+**Validation:**  
+- `npm install` and `npm run build` succeed.
+- App loads at `/`, routes render without error, Zustand stores and API clients function.
+- Design tokens are available in Emotion theme and used in components.
+**Role:** role-fe (frontend_developer)
+
+---
+
+### ITEM 5: Frontend — UI Components & Pages (Figma 1:1 implementation)
+
+**Goal:**  
+Implement all UI components and pages as per Figma contract, matching tokens, layout, and interactions 1:1:
+- Login/Registro page
+- Dashboard Principal (metrics cards, campaigns table, tasks list, performance chart)
+- Gestión de Campañas (table, filters, modal)
+- Detalle de Campaña (header, metrics, tasks, chart, comments)
+- Seguimiento de Tareas (filters, list, modal)
+- Métricas y Reportes (charts, table, export)
+- Gestión de Usuarios (table, modal)
+- All base components: Button, Input, Select, Checkbox, Switch, Modal, Card, Table, SearchBar, Filter, Avatar, Badge, ProgressBar, Tooltip, Toast, Sidebar, Header, Chart placeholders
+- Responsive layout for desktop (1440px), auto layout for future mobile adaptation
+
+**Files to create:**
+- frontend/src/components/Button.tsx (create) — All button variants per Figma.
+- frontend/src/components/Input.tsx (create) — Text input with label, error state.
+- frontend/src/components/Select.tsx (create)
+- frontend/src/components/Checkbox.tsx (create)
+- frontend/src/components/Switch.tsx (create)
+- frontend/src/components/Modal.tsx (create)
+- frontend/src/components/Card.tsx (create)
+- frontend/src/components/Table.tsx (create)
+- frontend/src/components/SearchBar.tsx (create)
+- frontend/src/components/Filter.tsx (create)
+- frontend/src/components/Avatar.tsx (create)
+- frontend/src/components/Badge.tsx (create)
+- frontend/src/components/ProgressBar.tsx (create)
+- frontend/src/components/Tooltip.tsx (create)
+- frontend/src/components/Toast.tsx (create)
+- frontend/src/components/Sidebar.tsx (create)
+- frontend/src/components/Header.tsx (create)
+- frontend/src/components/Chart.tsx (create) — Chart.js wrapper, placeholder for charts.
+- frontend/src/pages/Login.tsx (create)
+- frontend/src/pages/Dashboard.tsx (create)
+- frontend/src/pages/Campaigns.tsx (create)
+- frontend/src/pages/CampaignDetail.tsx (create)
+- frontend/src/pages/Tasks.tsx (create)
+- frontend/src/pages/MetricsReports.tsx (create)
+- frontend/src/pages/Users.tsx (create)
+**Dependencies:** Item 1, Item 4  
+**Validation:**  
+- App renders all pages and components as per Figma, visually matching tokens, layout, and interactions.
+- All navigation and modals work as in Figma.
+- Responsive at 1440px, auto layout for future adaptation.
+**Role:** role-fe (frontend_developer)
+
+---
+
+### ITEM 6: Infrastructure & Deployment
+
+**Goal:**  
+Provide complete orchestration and documentation for local development and deployment:
+- Docker Compose for all services (Postgres, auth-service, opportunity-service, frontend)
+- Healthchecks and depends_on for all services
+- .env.example with all required variables and descriptions
+- .gitignore and .dockerignore for all relevant files
+- run.sh script: validates Docker, builds, starts, waits for healthy, prints access URL
+- README.md: setup, run, endpoints, troubleshooting
+- docs/architecture.md: system diagram, component descriptions
+
+**Files to create:**
+- docker-compose.yml (create) — All services, healthchecks, depends_on, correct build contexts, ports.
+- .env.example (create) — All env vars for backend, frontend, DB, with descriptions and example values.
+- .gitignore (create) — Exclude node_modules, dist, .env, __pycache__, *.pyc, .DS_Store, etc.
+- .dockerignore (create) — Exclude node_modules, .git, *.log, dist, etc.
+- run.sh (create) — Validates Docker, builds, starts, waits for healthy, prints URL.
+- README.md (create) — Prerequisites, clone, run, endpoints, troubleshooting.
+- docs/architecture.md (create) — System diagram, component descriptions, architecture summary.
+**Dependencies:** Items 1–5  
+**Validation:**  
+- `./run.sh` completes without errors.
+- All services report healthy.
+- App accessible at documented URL, all endpoints and UI functional.
+**Role:** role-devops (devops_support)
+
+---
