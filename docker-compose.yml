@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15
-    container_name: fernanda_db
+
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-fernanda_marketing}
       POSTGRES_USER: ${POSTGRES_USER:-fernanda}
@@ -22,7 +22,7 @@ services:
     build:
       context: ./backend
       dockerfile: auth-service/Dockerfile
-    container_name: fernanda_auth_service
+
     environment:
       AUTH_DB_URL: postgresql://${POSTGRES_USER:-fernanda}:${POSTGRES_PASSWORD:-supersecret}@db:5432/${POSTGRES_DB:-fernanda_marketing}
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change_this_secret}
@@ -43,7 +43,7 @@ services:
     build:
       context: ./backend
       dockerfile: opportunity-service/Dockerfile
-    container_name: fernanda_opportunity_service
+
     environment:
       OPPORTUNITY_DB_URL: postgresql://${POSTGRES_USER:-fernanda}:${POSTGRES_PASSWORD:-supersecret}@db:5432/${POSTGRES_DB:-fernanda_marketing}
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change_this_secret}
@@ -64,7 +64,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: fernanda_frontend
+
     environment:
       VITE_API_URL: http://localhost:8001
       VITE_OPPORTUNITY_SERVICE_URL: http://localhost:8002
